@@ -65,8 +65,10 @@ col1, col2 = st.columns([1, 1])
 with col1:
     st.header("🎨 提示词元素控制")
 
+    # 模板与基础设置
+    st.subheader("1. 模板与基础设置")
+
     # 模板选择
-    st.subheader("1. 选择模板（可选）")
     template_options = ["自定义"] + list(TEMPLATES.keys())
     selected_template = st.selectbox(
         "预设模板",
@@ -77,11 +79,7 @@ with col1:
     if selected_template != "自定义":
         st.info(f"📝 {TEMPLATES[selected_template]['name']}")
 
-    st.markdown("---")
-
     # 基础设置
-    st.subheader("2. 基础设置")
-
     col_a, col_b = st.columns(2)
     with col_a:
         country = st.selectbox("国家/地区", COUNTRIES)
@@ -94,7 +92,7 @@ with col1:
     st.markdown("---")
 
     # 视觉风格
-    st.subheader("3. 视觉风格")
+    st.subheader("2. 视觉风格")
 
     visual_style = st.multiselect(
         "视觉风格（可多选）",
@@ -115,7 +113,7 @@ with col1:
     st.markdown("---")
 
     # 内容元素
-    st.subheader("4. 内容元素")
+    st.subheader("3. 内容元素")
 
     brand_name = st.text_input("品牌名称", placeholder="例如：长沙臭豆腐")
     theme = st.text_input("主题/产品", placeholder="例如：臭豆腐")
