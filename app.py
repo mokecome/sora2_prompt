@@ -53,9 +53,15 @@ with st.sidebar:
     # 功能模式选择
     generation_mode = st.radio(
         "生成模式",
-        ["单个生成", "批量生成"],
-        help="单个生成：生成一个提示词 | 批量生成：使用变量批量生成多个提示词"
+        ["单个生成", "批量生成", "🤖 AI快速生成"],
+        help="单个生成：手动设置参数 | 批量生成：变量批量生成 | AI快速生成：一句话生成提示词"
     )
+
+    #AI快速生成说明
+    if generation_mode == "🤖 AI快速生成":
+        if not api_key:
+            st.warning("⚠️ AI快速生成需要OpenAI API Key")
+        st.caption("💡 只需一句话描述你的需求，AI自动生成完整提示词")
 
     api_key = st.text_input(
         "OpenAI API Key",
@@ -105,16 +111,149 @@ with st.sidebar:
         3. 配置精确控制参数
         4. 点击生成提示词
         """)
-    else:
+    elif generation_mode == "批量生成":
         st.markdown("""
         1. 配置变量槽位和值
         2. 在提示词中使用 {变量名}
         3. 点击批量生成
         4. 导出所有组合结果
         """)
+    else:  # AI快速生成
+        st.markdown("""
+        1. 用一句话描述你的需求
+        2. 点击AI生成按钮
+        3. 获得完整的Sora2提示词
 
-# 主界面 - 左右两栏
-col1, col2 = st.columns([1, 1])
+        💡 示例：
+        "做一个长沙臭豆腐的街头广告，10秒，黑白风格，快节奏"
+        """)
+
+# 主界面 - 根据模式显示不同内容
+if generation_mode == "🤖 AI快速生成":
+    # AI快速生成界面（全宽布局）
+    st.header("🤖 AI快速生成")
+
+    # 用户输入
+    st.markdown("### ✍️ 描述你的需求")
+    user_requirement = st.text_area(
+        "一句话描述",
+        placeholder="例如：我想做一个长沙臭豆腐的街头广告，10秒，黑白高对比，快节奏，有街头感...",
+        height=120,
+        help="尽可能详细地描述你想要的视频效果"
+    )
+
+    # 快捷模板按钮
+    st.markdown("### 💡 快捷模板")
+    col_t1, col_t2, col_t3 = st.columns(3)
+    with col_t1:
+        if st.button("📱 产品广告", use_container_width=True):
+            user_requirement = "做一个产品广告，突出产品特点和质感，现代简约风格"
+        if st.button("🏙️ 城市宣传", use_container_width=True):
+            user_requirement = "做一个城市宣传片，展现城市活力和魅力"
+    with col_t2:
+        if st.button("🎮 游戏预告", use_container_width=True):
+            user_requirement = "做一个游戏预告片，史诗感，酷炫特效"
+        if st.button("🍜 美食展示", use_container_width=True):
+            user_requirement = "做一个美食视频，特写镜头，突出食物质感"
+    with col_t3:
+        if st.button("📚 教育视频", use_container_width=True):
+            user_requirement = "做一个教育讲解视频，简洁清晰，专业感"
+        if st.button("✈️ 旅游vlog", use_container_width=True):
+            user_requirement = "做一个旅游vlog，记录旅行瞬间，温馨治愈"
+
+    # 生成按钮
+    st.markdown("###  ")
+    ai_gen_btn = st.button("🎬 AI生成提示词", type="primary", use_container_width=True, disabled=not (api_key and user_requirement))
+
+    # 处理生成
+    if ai_gen_btn and api_key and user_requirement:
+        with st.spinner("AI生成中...请稍候"):
+            try:
+                client = create_openai_client(api_key)
+
+                system_prompt = """你是专业的Sora2视频提示词专家。
+
+用户会用一句话描述他们的需求，你需要将其转换为完整、详细、专业的Sora2视频生成提示词。
+
+提示词要求：
+1. 包含时长、场景、主体、动作等基础信息
+2. 详细描述镜头语言（镜头类型、运镜方式、景深等）
+3. 描述视觉风格和色调氛围
+4. 如果适用，添加光影效果、粒子效果、音频建议等
+5. 语言要具体、生动、适合AI理解
+6. 长度适中（200-400字）
+
+直接输出提示词，不要解释或其他内容。"""
+
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"需求：{user_requirement}"}
+                    ],
+                    temperature=0.7
+                )
+
+                generated_prompt = response.choices[0].message.content
+                st.session_state['ai_quick_prompt'] = generated_prompt
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"❌ 生成失败: {str(e)}")
+
+    # 显示生成结果
+    if 'ai_quick_prompt' in st.session_state:
+        st.markdown("---")
+        st.markdown("### 🎉 生成的提示词")
+
+        prompt_text = st.text_area(
+            "AI生成的提示词",
+            value=st.session_state['ai_quick_prompt'],
+            height=350,
+            label_visibility="collapsed"
+        )
+
+        # 操作按钮
+        col_act1, col_act2, col_act3 = st.columns(3)
+        with col_act1:
+            if st.button("✨ AI优化", use_container_width=True):
+                with st.spinner("优化中..."):
+                    try:
+                        client = create_openai_client(api_key)
+                        response = client.chat.completions.create(
+                            model="gpt-4",
+                            messages=[
+                                {"role": "system", "content": "你是Sora2提示词专家。优化用户提供的提示词，使其更生动、更具体、更适合AI视频生成。"},
+                                {"role": "user", "content": f"请优化以下提示词：\n\n{st.session_state['ai_quick_prompt']}"}
+                            ],
+                            temperature=0.7
+                        )
+                        st.session_state['ai_quick_prompt'] = response.choices[0].message.content
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"优化失败: {str(e)}")
+
+        with col_act2:
+            if st.button("🔄 重新生成", use_container_width=True):
+                if 'ai_quick_prompt' in st.session_state:
+                    del st.session_state['ai_quick_prompt']
+                st.rerun()
+
+        with col_act3:
+            st.download_button(
+                label="📥 下载",
+                data=st.session_state['ai_quick_prompt'],
+                file_name=f"sora2_prompt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+
+        st.success("✅ 提示词已生成！")
+        st.caption(f"字数: {len(st.session_state['ai_quick_prompt'])} 字符")
+
+else:
+    # 原有的单个生成和批量生成界面
+    col1, col2 = st.columns([1, 1])
 
 with col1:
     st.header("🎨 提示词元素控制")
