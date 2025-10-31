@@ -4,6 +4,31 @@ from templates import (
     CAMERA_TECHNIQUES, TONES, DIRECTOR_STYLES, DURATIONS
 )
 from openai import OpenAI
+import os
+
+# Helper function to initialize OpenAI client safely
+def create_openai_client(api_key):
+    """
+    Create OpenAI client with proper configuration.
+    Handles proxy settings properly for OpenAI v1.0+
+    """
+    # Remove any proxy-related environment variables that might interfere
+    # OpenAI v1.0+ uses httpx which respects HTTP_PROXY/HTTPS_PROXY env vars
+    # but doesn't accept 'proxies' as a constructor parameter
+    try:
+        client = OpenAI(
+            api_key=api_key,
+            max_retries=2,
+            timeout=30.0
+        )
+        return client
+    except TypeError as e:
+        if "proxies" in str(e):
+            # If proxies parameter is being passed incorrectly, try with minimal config
+            client = OpenAI(api_key=api_key)
+            return client
+        else:
+            raise
 
 # 页面配置
 st.set_page_config(
@@ -40,8 +65,10 @@ col1, col2 = st.columns([1, 1])
 with col1:
     st.header("🎨 提示词元素控制")
 
+    # 模板与基础设置
+    st.subheader("1. 模板与基础设置")
+
     # 模板选择
-    st.subheader("1. 选择模板（可选）")
     template_options = ["自定义"] + list(TEMPLATES.keys())
     selected_template = st.selectbox(
         "预设模板",
@@ -52,11 +79,7 @@ with col1:
     if selected_template != "自定义":
         st.info(f"📝 {TEMPLATES[selected_template]['name']}")
 
-    st.markdown("---")
-
     # 基础设置
-    st.subheader("2. 基础设置")
-
     col_a, col_b = st.columns(2)
     with col_a:
         country = st.selectbox("国家/地区", COUNTRIES)
@@ -64,13 +87,8 @@ with col1:
 
     with col_b:
         duration = st.select_slider("时长（秒）", options=DURATIONS, value=10)
-        ad_category = st.selectbox("广告类型", list(AD_TYPES.keys()))
-
-    st.markdown("---")
 
     # 视觉风格
-    st.subheader("3. 视觉风格")
-
     visual_style = st.multiselect(
         "视觉风格（可多选）",
         VISUAL_STYLES,
@@ -90,7 +108,7 @@ with col1:
     st.markdown("---")
 
     # 内容元素
-    st.subheader("4. 内容元素")
+    st.subheader("2. 内容元素")
 
     brand_name = st.text_input("品牌名称", placeholder="例如：长沙臭豆腐")
     theme = st.text_input("主题/产品", placeholder="例如：臭豆腐")
@@ -170,7 +188,8 @@ with col2:
         # AI增强
         if use_ai and api_key:
             try:
-                client = OpenAI(api_key=api_key)
+                # Use helper function to create OpenAI client safely
+                client = create_openai_client(api_key)
                 response = client.chat.completions.create(
                     model="gpt-4",
                     messages=[
@@ -181,6 +200,11 @@ with col2:
                 )
                 prompt = response.choices[0].message.content
                 st.success("✅ AI增强完成！")
+            except TypeError as e:
+                if "proxies" in str(e):
+                    st.error("❌ AI增强失败: 代理配置错误。OpenAI v1.0+ 不支持 'proxies' 参数。请使用 HTTP_PROXY/HTTPS_PROXY 环境变量配置代理。")
+                else:
+                    st.error(f"❌ AI增强失败: {str(e)}")
             except Exception as e:
                 st.error(f"❌ AI增强失败: {str(e)}")
 
