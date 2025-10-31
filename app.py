@@ -376,6 +376,189 @@ with col1:
 with col2:
     st.header("📄 生成结果")
 
+    # 智能对话框 - 读取参数并结合自然语言生成
+    with st.expander("💬 AI智能对话（自动读取已设参数）", expanded=False):
+        st.caption("已设置的参数会自动带入AI对话，你只需用自然语言补充细节")
+
+        # 收集当前已设置的参数
+        def collect_current_params():
+            """收集当前页面所有已设置的参数"""
+            params = {}
+            if selected_template != "自定义":
+                params["模板"] = selected_template
+            params["国家"] = country
+            if location:
+                params["地点"] = location
+            params["时长"] = f"{duration}秒"
+            if visual_style:
+                params["视觉风格"] = ", ".join(visual_style)
+            if camera_technique:
+                params["镜头运用"] = ", ".join(camera_technique)
+            params["色调氛围"] = tone
+            if director_style != "无特定风格":
+                params["导演风格"] = director_style
+            if industry_type != "不限":
+                params["行业类型"] = industry_type
+                if industry_subtype:
+                    params["具体类型"] = industry_subtype
+            if brand_name:
+                params["品牌名称"] = brand_name
+            if theme:
+                params["主题/产品"] = theme
+            if slogan:
+                params["广告语"] = slogan
+            if scene_description:
+                params["场景描述"] = scene_description
+
+            # 精确控制参数
+            if camera_type:
+                params["镜头类型"] = ", ".join(camera_type)
+            if camera_movement:
+                params["运镜方式"] = ", ".join(camera_movement)
+            if depth_of_field:
+                params["景深效果"] = ", ".join(depth_of_field)
+            if camera_speed and camera_speed != "不限":
+                params["镜头速度"] = camera_speed
+            if lighting:
+                params["光影效果"] = ", ".join(lighting)
+            if particles:
+                params["粒子效果"] = ", ".join(particles)
+            if weather and weather != "不限":
+                params["天气氛围"] = weather
+            if physics_sim:
+                params["物理模拟"] = ", ".join(physics_sim)
+            if music_type and music_type != "不限":
+                params["音乐类型"] = music_type
+            if sound_effects:
+                params["音效建议"] = ", ".join(sound_effects)
+            if rhythm and rhythm != "不限":
+                params["节奏匹配"] = rhythm
+            if rhythm_pattern and rhythm_pattern != "不限":
+                params["节奏分段"] = rhythm_pattern
+            if shot_transition and shot_transition != "不限":
+                params["镜头切换"] = shot_transition
+
+            return params
+
+        current_params = collect_current_params()
+
+        # 显示已读取的参数
+        if current_params:
+            st.markdown("**🔍 已读取的参数：**")
+            params_text = " | ".join([f"{k}: {v}" for k, v in list(current_params.items())[:5]])
+            if len(current_params) > 5:
+                params_text += f" | ...共{len(current_params)}个参数"
+            st.caption(params_text)
+        else:
+            st.info("💡 左侧还没有设置参数，你可以先设置一些参数，或直接用自然语言描述")
+
+        # 用户输入自然语言
+        dialog_input = st.text_area(
+            "补充描述",
+            placeholder="例如：加入更多街头元素，要有年轻人跑步的画面，背景音乐要动感...",
+            height=80,
+            key="smart_dialog_input"
+        )
+
+        # AI生成按钮
+        dialog_generate_btn = st.button(
+            "🤖 AI生成（结合参数）",
+            use_container_width=True,
+            disabled=not (api_key and (dialog_input or current_params)),
+            key="dialog_generate"
+        )
+
+        # 处理对话生成
+        if dialog_generate_btn and api_key:
+            with st.spinner("AI思考中...结合你的参数和描述生成提示词"):
+                try:
+                    client = create_openai_client(api_key)
+
+                    # 构建系统提示词
+                    system_prompt = """你是专业的Sora2视频提示词专家。
+
+用户已经设置了一些参数，并用自然语言补充了描述。你需要：
+1. 理解用户已设置的参数
+2. 结合用户的自然语言描述
+3. 生成完整、专业的Sora2提示词
+
+要求：
+- 充分使用用户设置的参数
+- 融合用户的自然语言描述
+- 生成的提示词要详细、具体、专业
+- 长度200-500字
+- 直接输出提示词，不要解释"""
+
+                    # 构建用户消息
+                    user_message = ""
+                    if current_params:
+                        user_message += "用户已设置的参数：\n"
+                        for k, v in current_params.items():
+                            user_message += f"- {k}: {v}\n"
+                        user_message += "\n"
+
+                    if dialog_input:
+                        user_message += f"用户补充描述：\n{dialog_input}\n\n"
+
+                    user_message += "请生成完整的Sora2提示词："
+
+                    # 调用API
+                    response = client.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message}
+                        ],
+                        temperature=0.7
+                    )
+
+                    generated_prompt = response.choices[0].message.content
+                    st.session_state['dialog_generated_prompt'] = generated_prompt
+                    st.success("✅ 基于你的参数和描述，AI已生成完整提示词！")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"❌ 生成失败: {str(e)}")
+
+        # 显示对话生成的结果
+        if 'dialog_generated_prompt' in st.session_state:
+            st.markdown("---")
+            st.markdown("**🎉 AI生成的提示词：**")
+            st.text_area(
+                "对话生成结果",
+                value=st.session_state['dialog_generated_prompt'],
+                height=250,
+                label_visibility="collapsed",
+                key="dialog_result_display"
+            )
+
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                if st.button("✨ 继续优化", use_container_width=True, key="dialog_optimize"):
+                    with st.spinner("优化中..."):
+                        try:
+                            client = create_openai_client(api_key)
+                            response = client.chat.completions.create(
+                                model="gpt-4",
+                                messages=[
+                                    {"role": "system", "content": "优化Sora2提示词，使其更生动、更专业、更适合AI理解。"},
+                                    {"role": "user", "content": f"优化以下提示词：\n\n{st.session_state['dialog_generated_prompt']}"}
+                                ],
+                                temperature=0.7
+                            )
+                            st.session_state['dialog_generated_prompt'] = response.choices[0].message.content
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"优化失败: {str(e)}")
+
+            with col_d2:
+                if st.button("🔄 清除", use_container_width=True, key="dialog_clear"):
+                    if 'dialog_generated_prompt' in st.session_state:
+                        del st.session_state['dialog_generated_prompt']
+                    st.rerun()
+
+    st.markdown("---")
+
     # 生成按钮（根据模式显示不同按钮）
     if generation_mode == "单个生成":
         col_btn1, col_btn2 = st.columns(2)
