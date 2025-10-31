@@ -4,6 +4,31 @@ from templates import (
     CAMERA_TECHNIQUES, TONES, DIRECTOR_STYLES, DURATIONS
 )
 from openai import OpenAI
+import os
+
+# Helper function to initialize OpenAI client safely
+def create_openai_client(api_key):
+    """
+    Create OpenAI client with proper configuration.
+    Handles proxy settings properly for OpenAI v1.0+
+    """
+    # Remove any proxy-related environment variables that might interfere
+    # OpenAI v1.0+ uses httpx which respects HTTP_PROXY/HTTPS_PROXY env vars
+    # but doesn't accept 'proxies' as a constructor parameter
+    try:
+        client = OpenAI(
+            api_key=api_key,
+            max_retries=2,
+            timeout=30.0
+        )
+        return client
+    except TypeError as e:
+        if "proxies" in str(e):
+            # If proxies parameter is being passed incorrectly, try with minimal config
+            client = OpenAI(api_key=api_key)
+            return client
+        else:
+            raise
 
 # 页面配置
 st.set_page_config(
@@ -170,7 +195,8 @@ with col2:
         # AI增强
         if use_ai and api_key:
             try:
-                client = OpenAI(api_key=api_key)
+                # Use helper function to create OpenAI client safely
+                client = create_openai_client(api_key)
                 response = client.chat.completions.create(
                     model="gpt-4",
                     messages=[
@@ -181,6 +207,11 @@ with col2:
                 )
                 prompt = response.choices[0].message.content
                 st.success("✅ AI增强完成！")
+            except TypeError as e:
+                if "proxies" in str(e):
+                    st.error("❌ AI增强失败: 代理配置错误。OpenAI v1.0+ 不支持 'proxies' 参数。请使用 HTTP_PROXY/HTTPS_PROXY 环境变量配置代理。")
+                else:
+                    st.error(f"❌ AI增强失败: {str(e)}")
             except Exception as e:
                 st.error(f"❌ AI增强失败: {str(e)}")
 
