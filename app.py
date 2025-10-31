@@ -57,17 +57,17 @@ with st.sidebar:
         help="单个生成：手动设置参数 | 批量生成：变量批量生成 | AI快速生成：一句话生成提示词"
     )
 
-    #AI快速生成说明
-    if generation_mode == "🤖 AI快速生成":
-        if not api_key:
-            st.warning("⚠️ AI快速生成需要OpenAI API Key")
-        st.caption("💡 只需一句话描述你的需求，AI自动生成完整提示词")
-
     api_key = st.text_input(
         "OpenAI API Key",
         type="password",
         help="输入你的OpenAI API Key以启用AI增强功能（可选）"
     )
+
+    # AI快速生成说明
+    if generation_mode == "🤖 AI快速生成":
+        if not api_key:
+            st.warning("⚠️ AI快速生成需要OpenAI API Key")
+        st.caption("💡 只需一句话描述你的需求，AI自动生成完整提示词")
 
     st.markdown("---")
 
