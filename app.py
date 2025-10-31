@@ -89,11 +89,7 @@ with col1:
         duration = st.select_slider("时长（秒）", options=DURATIONS, value=10)
         ad_category = st.selectbox("广告类型", list(AD_TYPES.keys()))
 
-    st.markdown("---")
-
     # 视觉风格
-    st.subheader("2. 视觉风格")
-
     visual_style = st.multiselect(
         "视觉风格（可多选）",
         VISUAL_STYLES,
@@ -113,7 +109,7 @@ with col1:
     st.markdown("---")
 
     # 内容元素
-    st.subheader("3. 内容元素")
+    st.subheader("2. 内容元素")
 
     brand_name = st.text_input("品牌名称", placeholder="例如：长沙臭豆腐")
     theme = st.text_input("主题/产品", placeholder="例如：臭豆腐")
