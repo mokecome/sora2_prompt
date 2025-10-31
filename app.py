@@ -87,7 +87,6 @@ with col1:
 
     with col_b:
         duration = st.select_slider("时长（秒）", options=DURATIONS, value=10)
-        ad_category = st.selectbox("广告类型", list(AD_TYPES.keys()))
 
     # 视觉风格
     visual_style = st.multiselect(
